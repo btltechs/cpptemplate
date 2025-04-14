@@ -1,0 +1,61 @@
+# Example GitHub Actions YAML config file
+name: Run UT and Integration Testing
+
+on:
+  push:
+    # We run whenever a push is made to master (production) or dev (testing) branches
+    branches: [ "master", "dev" ]
+  pull_request:
+    # Only run tests when merging to production code
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    # By default, google test libraries aren't installed on the 'ubuntu-latest' image
+    # Luckily, they are distributed using apt. Install them as a prerequisite step
+    - name: Install Google Test
+      run: sudo apt-get update && sudo apt-get install -y libgtest-dev gcovr
+      
+    # Generate platform-specific Makefile in subdirectory named 'build'
+    - name: CMake
+      run: cmake -D CMAKE_BUILD_TYPE=Debug -B build
+
+    # Compile main program
+    - name: Compile main program
+      working-directory: ./build
+      run: make
+      
+    # Compile the program and its test binary. Make sure to change working directory to 'build'
+    - name: Compile UT binary
+      working-directory: ./build
+      run: make check
+
+    # Set up python3.13, so we can run robot framework
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    # All requirements for integration testing are installed
+    - name: Install integration testing dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r integration/requirements.txt
+
+    # Run integration tests. We continue on failure so that logs are uploaded if tests fail for debugging
+    - name: Run integration tests
+      run: |
+        robot -T --outputdir results integration/main.robot
+
+    - name: Upload artifact
+      if: '!cancelled()'
+      uses: actions/upload-artifact@v4
+      with:
+        path: ./results
+        name: integration-test-results
+        retention-days: 3
