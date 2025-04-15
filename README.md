@@ -2,8 +2,6 @@
 Put important information about this repository here! Use of markdown is highly
 recommended.
 
-Example change
-
 [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
 
 ## How to Build ##
